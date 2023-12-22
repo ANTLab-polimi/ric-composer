@@ -60,7 +60,7 @@ services:
     container_name: xapp
 
   gnb:
-    image: emoro/gnb_emu:latest
+    image: gnbemu:latest
     networks:
       ric:
         ipv4_address: 10.0.2.40
