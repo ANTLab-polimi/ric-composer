@@ -1,0 +1,81 @@
+version: '3'
+services:
+  db:
+    image: emoro/dbaas:latest
+    networks:
+      ric:
+        ipv4_address: 10.0.2.12
+    container_name: db
+
+  e2rtmansim:
+    image: emoro/e2rtmansim:latest
+    networks:
+      ric:
+        ipv4_address: 10.0.2.15
+    container_name: e2rtmansim
+
+  e2mgr:
+    image: emoro/e2mgr:latest
+    networks:
+      ric:
+        ipv4_address: 10.0.2.11
+    environment:
+      - RIC_ID=7b0000-000000/18
+      - DBAAS_PORT_6379_TCP_ADDR=10.0.2.12
+      - DBAAS_PORT_6379_TCP_PORT=6379
+      - DBAAS_SERVICE_HOST=10.0.2.12
+      - DBAAS_SERCE_PORT=6379
+    volumes:
+      - ./ric_routes.txt:/opt/E2Manager/router.txt:ro
+    container_name: e2mgr
+
+  e2term:
+    image: emoro/e2term:latest
+    networks:
+      ric:
+        ipv4_address: 10.0.2.10
+    depends_on:
+      - e2mgr
+    environment:
+      - local-ip=10.0.2.10
+      - trace=start
+      - external-fqdn=e2t.com
+      - POD_NAME=E2TERM_POD
+      - sctp-port=36422
+    volumes:
+      - ./e2term_config.conf:/opt/e2/config/config.conf:ro
+      - ./ric_routes.txt:/opt/e2/dockerRouter.txt:ro
+    container_name: e2term
+  
+  xapp:
+    image: xapp:dev
+    build: ./xapp-e2ap-py
+    networks:
+      ric:
+        ipv4_address: 10.0.2.24
+    environment:
+      - DBAAS_SERVICE_HOST=10.0.2.12
+      - DBAAS_SERVICE_PORT=6379
+    volumes:
+      - ./xapp_routes.txt:/python_xapp/routes.txt:ro
+      - ./xapp-e2ap-py/:/python_xapp/
+    container_name: xapp
+
+  gnb:
+    image: gnb:dev
+    build: ./gNB-e2sm-emu
+    volumes:
+        - ./gNB-e2sm-emu/:/gNB-e2sm-emu/
+    networks:
+      ric:
+        ipv4_address: 10.0.2.40
+    container_name: gnb
+
+networks:
+  ric:
+    name: ric
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.0.2.0/24
